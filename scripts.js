@@ -2,6 +2,7 @@ const gameContainer = document.getElementById("gameContainer");
 const gridSize = document.querySelector("#gridSize");
 const startBtn = document.querySelector("#startBtn");
 const statusText = document.querySelector("#statusText");
+const recordText = document.querySelector("#record");
 const symbols = [
   "🍎",
   "🍌",
@@ -42,15 +43,26 @@ let boxes; // Keep track of visible symbols
 let revealedCount = 0; // Keep track of total revealed boxes
 let revealedBoxes = []; // Holds the currently revealed boxes
 let lockBoard = false; // Prevent over-clicking
+let moveCounter;
+
+window.addEventListener("load", () => {
+  const best = getBestGame();
+  if (best) {
+    recordText.textContent = `🏆 Record: ${best.moves} moves`;
+  } else {
+    recordText.textContent = `🏆 Record: N/A`;
+  }
+});
 
 // Initiate the game
 startBtn.addEventListener("click", () => {
   const size = parseInt(gridSize.value);
   gameStatus = createGameStatus(size);
   buildGrid(size);
-  revealedBoxes = []; // <-- added to reset state
-  revealedCount = 0; // <-- added to reset state
-  lockBoard = false; // <-- added to reset state
+  revealedBoxes = []; 
+  revealedCount = 0; 
+  lockBoard = false; 
+  moveCounter = 0;
 });
 
 function createGameStatus(size) {
@@ -93,6 +105,8 @@ function buildGrid(size) {
 
 function clickedBox() {
   if (lockBoard) return; // Prevent over-clicking
+
+  moveCounter += 1;
   reveal(this);
 }
 
@@ -127,7 +141,14 @@ function check() {
 
         if (win()) {
           statusText.textContent = "🎉 You Win!";
-          lockBoard = true; // Optional: freeze board on win
+          lockBoard = true; 
+
+          saveGame(moveCounter); // Save current game
+
+          const best = getBestGame(); // Update record if new best
+          if (best) {
+            recordText.textContent = `🏆 Record: ${best.moves} moves`;
+          }
         }
       } else {
         boxes[revealedBoxes[0].index].textContent = "";
@@ -141,12 +162,24 @@ function check() {
   }
 }
 
+// Win condition
 function win() {
-  let win = true;
-  for (let i = 0; i < gameStatus.length; i++) {
-    if (gameStatus[i].matched == false) {
-      win = false;
-    }
-  }
-  return win;
+  return gameStatus.every((card) => card.matched);
+}
+
+// Save game result to localStorage
+function saveGame(moves) {
+  const history = JSON.parse(localStorage.getItem("games")) || [];
+  history.push({ moves, timestamp: Date.now() });
+  localStorage.setItem("games", JSON.stringify(history));
+}
+
+// Get the best game
+function getBestGame() {
+  const history = JSON.parse(localStorage.getItem("games")) || [];
+  if (history.length === 0) return null;
+
+  return history.reduce((best, curr) =>
+    curr.moves < best.moves ? curr : best
+  );
 }
